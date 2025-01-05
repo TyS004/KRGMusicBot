@@ -11,9 +11,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 
-GENERAL_CHANNEL_ID = 1325325286807572572
+GENERAL_CHANNEL_ID = 996703826520309810
 
-bot = commands.Bot(command_prefix='/', intents=intents)
+bot = commands.Bot(command_prefix='$', intents=intents)
 
 @bot.event
 async def on_ready():
@@ -35,7 +35,7 @@ async def disconnect(ctx):
 @bot.command()
 async def play(ctx):
     if ctx.voice_client:
-        audio_file = discord.FFmpegPCMAudio("20 (Instrumental).mp3")
+        audio_file = discord.FFmpegPCMAudio("YN Jay x Louie Ray - Triple S (Official Music Video).mp3")
         await ctx.voice_client.play(audio_file)
     else:
         await ctx.send("Not currently in Voice Channel.")
