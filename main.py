@@ -1,8 +1,10 @@
+import os
+
 import discord
 from discord.ext import commands
 
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyClientCredentials
 
 intents = discord.Intents.default()
 
@@ -38,4 +40,4 @@ async def play(ctx):
     else:
         await ctx.send("Not currently in Voice Channel.")
 
-bot.run(TOKEN)
+bot.run(os.environ['TOKEN'])
