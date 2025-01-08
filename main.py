@@ -9,6 +9,7 @@ import os
 #SERVER CONSTANTS
 VOICE_CHANNEL_ID = 1325325286807572572
 GUILD_ID = 1325325286371229696
+MAX_QUERY_LENGTH = 75
 
 #AUDIO DOWNLOAD CLASS IMPLEMENTATION FOR YTDL
 class AudioDL():
@@ -16,6 +17,8 @@ class AudioDL():
         self.ydl = yt_dlp.YoutubeDL({'format': 'bestaudio', 'outtmpl': '%(title)s.mp3', 'playlist_items' : '1'})
         self.video = None
         self.file_path = "Empty.mp3"
+        self.duration = 0
+        self.title = ""
 
     def get_mp3_link(self, link):
         self.cleanup()
@@ -30,6 +33,9 @@ class AudioDL():
                 if f.lower().endswith('.mp3'):
                     self.file_path = os.path.join(dir_path, f)
         print(f"downloaded {self.file_path}")
+
+        self.duration = self.video['entries'][0]['duration']
+        self.title = self.video['entries'][0]['title']
 
         return self.video
 
@@ -50,10 +56,27 @@ class AudioDL():
     def get_file_path(self):
         return self.file_path
 
+    def get_duration(self):
+        return self.time_format(self.duration)
+
+    def get_title(self):
+        return self.title
+
     def cleanup(self):
         if os.path.exists(self.file_path):
             os.remove(self.file_path)
             print("deleting " + self.file_path)
+
+    def time_format(self, seconds: int) -> str:
+        if seconds is not None:
+            seconds = int(seconds)
+            m = seconds % 3600 // 60
+            s = seconds % 3600 % 60
+            if m > 0:
+                return '{:2d}:{:02d}'.format(m, s)
+            elif s > 0:
+                return '{:02d}'.format(s)
+        return '-'
 
 
 #DISCORD BOT CLIENT CLASS IMPLEMENTATION
@@ -70,6 +93,8 @@ class Client_Bot():
 
         self.GENERAL_CHANNEL_ID = VOICE_CHANNEL_ID
         self.GUILD_ID = discord.Object(id=GUILD_ID)
+
+        self.queue = [] #NEEDS IMPLEMENTING
 
     def get_channel_id(self):
         return self.GENERAL_CHANNEL_ID
@@ -96,20 +121,22 @@ client_bot = Client_Bot()
 client = client_bot.get_client()
 tree = app_commands.CommandTree(client)
 
-MAX_QUERY_LENGTH = 75
-
 #COMMANDS
 
 @client.event
 async def on_ready():
+    client_bot.get_mp3_create().cleanup()
     await tree.sync(guild=client_bot.get_guild_id())
     print("Connected to Server")
 
 @tree.command(name="join",description="Ninja Joins the VC", guild=client_bot.get_guild_id())
 async def join(interaction):
-    await interaction.response.send_message("Connecting...")
-    general_channel = client.get_channel(client_bot.get_channel_id())
-    await general_channel.connect()
+    if interaction.guild.voice_client:
+        await interaction.response.send_message("Already in VC", ephemeral=True)
+    else:
+        await interaction.response.send_message("Connecting...")
+        general_channel = client.get_channel(client_bot.get_channel_id())
+        await general_channel.connect()
 
 @tree.command(name="disconnect", description="Ninja leaves", guild=client_bot.get_guild_id())
 async def disconnect(interaction):
@@ -124,7 +151,7 @@ async def disconnect(interaction):
 
         client_bot.get_mp3_create().cleanup()
     else:
-        await interaction.response.send_message("Not in a Voice Channel")
+        await interaction.response.send_message("Not Currently in a Voice Channel", ephemeral=True)
 
 @tree.command(name="play", description="Ninja Bumps Yo Shit", guild=client_bot.get_guild_id())
 async def play(interaction, song_title: str):
@@ -136,7 +163,7 @@ async def play(interaction, song_title: str):
         voice_client = interaction.guild.voice_client
 
     if len(song_title) < MAX_QUERY_LENGTH:
-        await interaction.response.send_message("Playing Song")
+        await interaction.response.defer()
 
         if voice_client.is_playing():
             client_bot.get_audio_file().cleanup()
@@ -150,12 +177,14 @@ async def play(interaction, song_title: str):
             print("Converted to Link")
 
         file_path = client_bot.get_mp3_create().get_file_path()
-
         client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
 
+        await interaction.followup.send("Playing: " + client_bot.get_mp3_create().get_title() + " " + client_bot.get_mp3_create().get_duration())
+
         voice_client.play(client_bot.get_audio_file())
+        print(client_bot.get_mp3_create().duration)
     else:
-        await interaction.response.send_message("Song Title too Long")
+        await interaction.response.send_message("Song Title too Long", ephemeral=True)
 
 @tree.command(name="stop", description="Ninja Stops Playing The Song", guild=client_bot.get_guild_id())
 async def stop(interaction):
@@ -166,7 +195,7 @@ async def stop(interaction):
         client_bot.get_audio_file().cleanup()
         voice_client.stop()
     else:
-        await interaction.response.send_message("Not Currently In a Voice Channel")
+        await interaction.response.send_message("Not Currently In a Voice Channel", ephemeral=True)
 
 @tree.command(name="pause", description="Ninja Pauses the Song", guild=client_bot.get_guild_id())
 async def pause(interaction):
@@ -176,7 +205,7 @@ async def pause(interaction):
         await interaction.response.send_message("Pausing Audio...")
         voice_client.pause()
     else:
-        await interaction.response.send_message("Not Currently In a Voice Channel")
+        await interaction.response.send_message("Not Currently In a Voice Channel", ephemeral=True)
 
 @tree.command(name="resume", description="Ninja Resumes the Song", guild=client_bot.get_guild_id())
 async def resume(interaction):
@@ -186,7 +215,7 @@ async def resume(interaction):
         await interaction.response.send_message("Resuming Audio...")
         voice_client.resume()
     else:
-        await interaction.response.send_message("Not Currently In a Voice Channel")
+        await interaction.response.send_message("Not Currently In a Voice Channel", ephemeral=True)
 
 #RUN STATEMENT
 client.run(os.environ['TOKEN'])
