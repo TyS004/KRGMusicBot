@@ -1,15 +1,12 @@
 import yt_dlp
 
-import asyncio
-
 import discord
 from discord.ext import commands
 from discord import app_commands
 
 import os
 
-GUILD_ID = discord.Object(id=1325325286371229696)
-
+#AUDIO DOWNLOAD CLASS IMPLEMENTATION FOR YTDL
 class AudioDL():
     def __init__(self):
         self.ydl = yt_dlp.YoutubeDL({'format': 'bestaudio', 'outtmpl': '%(title)s.mp3'})
@@ -47,67 +44,77 @@ class AudioDL():
             os.remove(self.file_path)
             print("deleting " + self.file_path)
 
+#DISCORD BOT CLIENT CLASS IMPLEMENTATION
 class Client_Bot():
     def __init__(self):
         self.intents = discord.Intents.default()
         self.intents.message_content = True
         self.intents.members = True
         self.intents.voice_states = True
+
         self.client = discord.Client(intents=self.intents)
 
-        self.GENERAL_CHANNEL_ID = 1325325286807572572
+        self.mp3_create = AudioDL()
 
-    #def create_bot(self):
-    #    return commands.Bot(command_prefix='$', intents=self.intents)
+        self.GENERAL_CHANNEL_ID = 1325325286807572572
+        self.GUILD_ID = discord.Object(id=1325325286371229696)
 
     def get_channel_id(self):
         return self.GENERAL_CHANNEL_ID
 
+    def get_guild_id(self):
+        return self.GUILD_ID
+
     def get_client(self):
         return self.client
 
+    def get_mp3_create(self):
+        return self.mp3_create
+
+    def set_audio_file(self, audio_file):
+        self.audio_file = audio_file
+
+    def get_audio_file(self):
+        return self.audio_file
+
+#MAIN SECTION
+
 client_bot = Client_Bot()
-#bot = client_bot.create_bot()
+
 client = client_bot.get_client()
 tree = app_commands.CommandTree(client)
 
-mp3create = AudioDL()
+MAX_QUERY_LENGTH = 75
 
-#JUST USE APPCOMMANDS WITH CLIENT TREE, USE INTERACTION.CTX
+#COMMANDS
+
 @client.event
 async def on_ready():
-    await tree.sync(guild=GUILD_ID)
+    await tree.sync(guild=client_bot.get_guild_id())
     print("Connected to Server")
 
-'''
-for filename in os.listdir('./cogs'):
-    if filename.endswith('.py'):
-        bot.load_extension(f'cogs.{filename[:-3]}')
-
-bot.run(os.environ['TOKEN'])
-
-'''
-@tree.command(name="join",description="Ninja Joins the VC", guild=GUILD_ID)
+@tree.command(name="join",description="Ninja Joins the VC", guild=client_bot.get_guild_id())
 async def join(interaction):
     await interaction.response.send_message("Connecting...")
     general_channel = client.get_channel(client_bot.get_channel_id())
     await general_channel.connect()
 
-
-@tree.command(name="disconnect", description="Ninja leaves", guild=GUILD_ID)
+@tree.command(name="disconnect", description="Ninja leaves", guild=client_bot.get_guild_id())
 async def disconnect(interaction):
     voice_client = interaction.guild.voice_client
 
     if voice_client:
+        client_bot.get_audio_file().cleanup()
         voice_client.stop()
+
         await voice_client.disconnect()
         await interaction.response.send_message("Disconnecting")
 
-        mp3create.cleanup()
+        client_bot.get_mp3_create().cleanup()
     else:
         await interaction.response.send_message("Not in a Voice Channel")
 
-@tree.command(name="play", description="Ninja Bumps Yo Shit", guild=GUILD_ID)
+@tree.command(name="play", description="Ninja Bumps Yo Shit", guild=client_bot.get_guild_id())
 async def play(interaction, song_title: str):
     voice_client = interaction.guild.voice_client
 
@@ -116,29 +123,46 @@ async def play(interaction, song_title: str):
         await general_channel.connect()
         voice_client = interaction.guild.voice_client
 
-    if song_title:
+    if len(song_title) < MAX_QUERY_LENGTH:
         await interaction.response.send_message("Playing Song")
-        mp3create.get_mp3_q(song_title)
-        file_path = mp3create.get_file_path()
 
-        audio_file = discord.FFmpegPCMAudio(file_path)
+        if song_title.__contains__("youtube"):
+            if voice_client.is_playing():
+                client_bot.get_audio_file().cleanup()
+                voice_client.stop()
 
-        voice_client.play(audio_file)
+            client_bot.get_mp3_create().get_mp3_link(song_title)
+            file_path = client_bot.get_mp3_create().get_file_path()
+
+            client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
+
+            voice_client.play(client_bot.get_audio_file())
+        else:
+            if voice_client.is_playing():
+                client_bot.get_audio_file().cleanup()
+                voice_client.stop()
+
+            client_bot.get_mp3_create().get_mp3_q(song_title)
+            file_path = client_bot.get_mp3_create().get_file_path()
+
+            client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
+
+            voice_client.play(client_bot.get_audio_file())
     else:
-        await interaction.response.send_message("No Song Title")
+        await interaction.response.send_message("Song Title too Long")
 
-
-@tree.command(name="stop", description="Ninja Stops Playing The Song", guild=GUILD_ID)
+@tree.command(name="stop", description="Ninja Stops Playing The Song", guild=client_bot.get_guild_id())
 async def stop(interaction):
     voice_client = interaction.guild.voice_client
 
     if voice_client:
         await interaction.response.send_message("Stopping Audio...")
+        client_bot.get_audio_file().cleanup()
         voice_client.stop()
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel")
 
-@tree.command(name="pause", description="Ninja Pauses the Song", guild=GUILD_ID)
+@tree.command(name="pause", description="Ninja Pauses the Song", guild=client_bot.get_guild_id())
 async def pause(interaction):
     voice_client = interaction.guild.voice_client
 
@@ -148,7 +172,7 @@ async def pause(interaction):
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel")
 
-@tree.command(name="resume", description="Ninja Resumes the Song", guild=GUILD_ID)
+@tree.command(name="resume", description="Ninja Resumes the Song", guild=client_bot.get_guild_id())
 async def resume(interaction):
     voice_client = interaction.guild.voice_client
 
@@ -158,4 +182,5 @@ async def resume(interaction):
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel")
 
+#RUN STATEMENT
 client.run(os.environ['TOKEN'])
