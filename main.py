@@ -7,8 +7,8 @@ from discord import app_commands
 import os
 
 #SERVER CONSTANTS
-GUILD_ID = 1325325286807572572
-VOICE_CHANNEL_ID = 1325325286371229696
+VOICE_CHANNEL_ID = 1325325286807572572
+GUILD_ID = 1325325286371229696
 
 #AUDIO DOWNLOAD CLASS IMPLEMENTATION FOR YTDL
 class AudioDL():
@@ -68,8 +68,8 @@ class Client_Bot():
 
         self.mp3_create = AudioDL()
 
-        self.GENERAL_CHANNEL_ID = GUILD_ID
-        self.GUILD_ID = discord.Object(id=VOICE_CHANNEL_ID)
+        self.GENERAL_CHANNEL_ID = VOICE_CHANNEL_ID
+        self.GUILD_ID = discord.Object(id=GUILD_ID)
 
     def get_channel_id(self):
         return self.GENERAL_CHANNEL_ID
@@ -187,7 +187,6 @@ async def resume(interaction):
         voice_client.resume()
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel")
-
 
 #RUN STATEMENT
 client.run(os.environ['TOKEN'])
