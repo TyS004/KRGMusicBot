@@ -6,10 +6,14 @@ from discord import app_commands
 
 import os
 
+#SERVER CONSTANTS
+GUILD_ID = 1325325286807572572
+VOICE_CHANNEL_ID = 1325325286371229696
+
 #AUDIO DOWNLOAD CLASS IMPLEMENTATION FOR YTDL
 class AudioDL():
     def __init__(self):
-        self.ydl = yt_dlp.YoutubeDL({'format': 'bestaudio', 'outtmpl': '%(title)s.mp3'})
+        self.ydl = yt_dlp.YoutubeDL({'format': 'bestaudio', 'outtmpl': '%(title)s.mp3', 'playlist_items' : '1'})
         self.video = None
         self.file_path = "Empty.mp3"
 
@@ -17,7 +21,14 @@ class AudioDL():
         self.cleanup()
 
         self.video = self.ydl.extract_info(link, download=True)
-        self.file_path = self.ydl.prepare_filename(self.video)
+        #self.file_path = self.ydl.prepare_filename(self.video)
+        #print(f"downloaded {self.file_path}")
+        for data in os.walk('D:\Python Projects\DiscordBot'):  # where to start searching
+            dir_path, folders, files = data
+
+            for f in files:
+                if f.lower().endswith('.mp3'):
+                    self.file_path = os.path.join(dir_path, f)
         print(f"downloaded {self.file_path}")
 
         return self.video
@@ -44,6 +55,7 @@ class AudioDL():
             os.remove(self.file_path)
             print("deleting " + self.file_path)
 
+
 #DISCORD BOT CLIENT CLASS IMPLEMENTATION
 class Client_Bot():
     def __init__(self):
@@ -56,8 +68,8 @@ class Client_Bot():
 
         self.mp3_create = AudioDL()
 
-        self.GENERAL_CHANNEL_ID = 1325325286807572572
-        self.GUILD_ID = discord.Object(id=1325325286371229696)
+        self.GENERAL_CHANNEL_ID = GUILD_ID
+        self.GUILD_ID = discord.Object(id=VOICE_CHANNEL_ID)
 
     def get_channel_id(self):
         return self.GENERAL_CHANNEL_ID
@@ -126,28 +138,22 @@ async def play(interaction, song_title: str):
     if len(song_title) < MAX_QUERY_LENGTH:
         await interaction.response.send_message("Playing Song")
 
+        if voice_client.is_playing():
+            client_bot.get_audio_file().cleanup()
+            voice_client.stop()
+
         if song_title.__contains__("youtube"):
-            if voice_client.is_playing():
-                client_bot.get_audio_file().cleanup()
-                voice_client.stop()
-
             client_bot.get_mp3_create().get_mp3_link(song_title)
-            file_path = client_bot.get_mp3_create().get_file_path()
-
-            client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
-
-            voice_client.play(client_bot.get_audio_file())
+            print("Already Link")
         else:
-            if voice_client.is_playing():
-                client_bot.get_audio_file().cleanup()
-                voice_client.stop()
+            client_bot.get_mp3_create().get_mp3_link('https://music.youtube.com/search?q=' + song_title.replace(" ", "+"))
+            print("Converted to Link")
 
-            client_bot.get_mp3_create().get_mp3_q(song_title)
-            file_path = client_bot.get_mp3_create().get_file_path()
+        file_path = client_bot.get_mp3_create().get_file_path()
 
-            client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
+        client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
 
-            voice_client.play(client_bot.get_audio_file())
+        voice_client.play(client_bot.get_audio_file())
     else:
         await interaction.response.send_message("Song Title too Long")
 
@@ -181,6 +187,7 @@ async def resume(interaction):
         voice_client.resume()
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel")
+
 
 #RUN STATEMENT
 client.run(os.environ['TOKEN'])
