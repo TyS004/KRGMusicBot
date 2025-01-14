@@ -26,6 +26,7 @@ class AudioDL():
         self.video = self.ydl.extract_info(link, download=True)
         #self.file_path = self.ydl.prepare_filename(self.video)
         #print(f"downloaded {self.file_path}")
+
         for data in os.walk('D:\Python Projects\DiscordBot'):  # where to start searching
             dir_path, folders, files = data
 
@@ -34,8 +35,8 @@ class AudioDL():
                     self.file_path = os.path.join(dir_path, f)
         print(f"downloaded {self.file_path}")
 
-        self.duration = self.video['entries'][0]['duration']
-        self.title = self.video['entries'][0]['title']
+        #self.duration = self.video['duration'] #IDK WHY THIS DOESNT WORK WITH SOME SONGS
+        #self.title = self.video['title']
 
         return self.video
 
@@ -129,7 +130,7 @@ async def on_ready():
     await tree.sync(guild=client_bot.get_guild_id())
     print("Connected to Server")
 
-@tree.command(name="join",description="Ninja Joins the VC", guild=client_bot.get_guild_id())
+@tree.command(name="join",description="Bot Joins VC", guild=client_bot.get_guild_id())
 async def join(interaction):
     if interaction.guild.voice_client:
         await interaction.response.send_message("Already in VC", ephemeral=True)
@@ -138,7 +139,7 @@ async def join(interaction):
         general_channel = client.get_channel(client_bot.get_channel_id())
         await general_channel.connect()
 
-@tree.command(name="disconnect", description="Ninja leaves", guild=client_bot.get_guild_id())
+@tree.command(name="disconnect", description="Bot leaves the Server", guild=client_bot.get_guild_id())
 async def disconnect(interaction):
     voice_client = interaction.guild.voice_client
 
@@ -153,7 +154,7 @@ async def disconnect(interaction):
     else:
         await interaction.response.send_message("Not Currently in a Voice Channel", ephemeral=True)
 
-@tree.command(name="play", description="Ninja Bumps Yo Shit", guild=client_bot.get_guild_id())
+@tree.command(name="play", description="Plays the Song", guild=client_bot.get_guild_id())
 async def play(interaction, song_title: str):
     voice_client = interaction.guild.voice_client
 
@@ -179,14 +180,14 @@ async def play(interaction, song_title: str):
         file_path = client_bot.get_mp3_create().get_file_path()
         client_bot.set_audio_file(discord.FFmpegPCMAudio(file_path))
 
-        await interaction.followup.send("Playing: " + client_bot.get_mp3_create().get_title() + " " + client_bot.get_mp3_create().get_duration())
+        await interaction.followup.send("Playing The Song")
 
         voice_client.play(client_bot.get_audio_file())
         print(client_bot.get_mp3_create().duration)
     else:
         await interaction.response.send_message("Song Title too Long", ephemeral=True)
 
-@tree.command(name="stop", description="Ninja Stops Playing The Song", guild=client_bot.get_guild_id())
+@tree.command(name="stop", description="Stops Playing The Song", guild=client_bot.get_guild_id())
 async def stop(interaction):
     voice_client = interaction.guild.voice_client
 
@@ -194,10 +195,11 @@ async def stop(interaction):
         await interaction.response.send_message("Stopping Audio...")
         client_bot.get_audio_file().cleanup()
         voice_client.stop()
+        client_bot.get_mp3_create().cleanup()
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel", ephemeral=True)
 
-@tree.command(name="pause", description="Ninja Pauses the Song", guild=client_bot.get_guild_id())
+@tree.command(name="pause", description="Pauses the Song", guild=client_bot.get_guild_id())
 async def pause(interaction):
     voice_client = interaction.guild.voice_client
 
@@ -207,7 +209,7 @@ async def pause(interaction):
     else:
         await interaction.response.send_message("Not Currently In a Voice Channel", ephemeral=True)
 
-@tree.command(name="resume", description="Ninja Resumes the Song", guild=client_bot.get_guild_id())
+@tree.command(name="resume", description="Resumes the Song", guild=client_bot.get_guild_id())
 async def resume(interaction):
     voice_client = interaction.guild.voice_client
 
